@@ -14,7 +14,7 @@ import os
 import time
 import argparse
 from model import VGG, make_conv_layers, vgg_cfgs
-from dataset.voc_dataset import VOCDataset
+from dataset.voc_dataset import VOCDataset, collate_fn
 from loss import custom_cross_entropy_loss
 from utils import make_batch, time_calculator
 
@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--batch_size', required=False, type=int, default=16)
     parser.add_argument('--epoch', required=False, type=int, default=50)
-    parser.add_argument('--lr', required=False, type=float, default=.001)
+    parser.add_argument('--lr', required=False, type=float, default=.00005)
 
     args = parser.parse_args()
 
@@ -32,7 +32,7 @@ if __name__ == '__main__':
     learning_rate = args.lr
     num_epoch = args.epoch
 
-    root = 'C://DeepLearningData/VOC2012/'
+    root = 'D://DeepLearningData/VOC2012/'
     transforms = transforms.Compose([transforms.Resize((224, 224)), transforms.ToTensor()])
     dset = VOCDataset(root, img_size=(224, 224), transforms=transforms, is_categorical=True)
 
@@ -41,8 +41,8 @@ if __name__ == '__main__':
     n_val_data = n_data - n_train_data
     dset_train, dset_val = random_split(dset, [n_train_data, n_val_data])
 
-    train_loader = DataLoader(dset_train, batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(dset_val, batch_size=batch_size, shuffle=True)
+    train_loader = DataLoader(dset_train, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+    val_loader = DataLoader(dset_val, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -51,7 +51,7 @@ if __name__ == '__main__':
     # model = models.VGG(models.vgg.make_layers(vgg_cfgs['D']), len(datasets.classes)).to(device)
     loss_func = custom_cross_entropy_loss
     optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=.9, weight_decay=.005)
-    summary(model, (3, 224, 224))
+    # summary(model, (3, 224, 224))
 
     print('Training...')
     train_loss_arr = []
@@ -78,8 +78,6 @@ if __name__ == '__main__':
             y = make_batch(labels, 'class').to(device)
 
             output = model(x)
-
-            print(y.shape, output.shape)
 
             optimizer.zero_grad()
             loss = loss_func(output, y)
@@ -117,8 +115,6 @@ if __name__ == '__main__':
                 y = make_batch(labels, 'class').to(device)
 
                 output = model(x)
-
-                print(y.shape, output.shape)
 
                 loss = loss_func(output, y)
                 acc = torch.true_divide((output.argmax(dim=1) == y.argmax(dim=1)).sum(), mini_batch)

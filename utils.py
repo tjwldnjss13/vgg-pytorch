@@ -11,10 +11,10 @@ def make_batch(datas, category=None):
             data_batch = torch.cat([data_batch, temp], dim=0)
             i += 1
     else:
-        data_batch = datas[category][0].unsqueeze(0)
+        data_batch = datas[0][category][0].unsqueeze(0)
         i = 1
-        while i < len(datas[category]):
-            temp = datas[category][i].unsqueeze(0)
+        while i < len(datas):
+            temp = datas[i][category][0].unsqueeze(0)
             data_batch = torch.cat([data_batch, temp], dim=0)
             i += 1
 
