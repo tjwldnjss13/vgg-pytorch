@@ -7,7 +7,7 @@ import torchvision.transforms as transforms
 import torchvision.models as models
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, random_split, ConcatDataset
 from torchsummary import summary
 
 import os
@@ -20,11 +20,14 @@ from utils import make_batch, time_calculator
 
 
 if __name__ == '__main__':
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    print('device: {}'.format(torch.cuda.get_device_name()))
+
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--batch_size', required=False, type=int, default=16)
-    parser.add_argument('--epoch', required=False, type=int, default=50)
-    parser.add_argument('--lr', required=False, type=float, default=.00005)
+    parser.add_argument('--batch_size', required=False, type=int, default=32)
+    parser.add_argument('--epoch', required=False, type=int, default=200)
+    parser.add_argument('--lr', required=False, type=float, default=.0001)
 
     args = parser.parse_args()
 
@@ -32,25 +35,52 @@ if __name__ == '__main__':
     learning_rate = args.lr
     num_epoch = args.epoch
 
-    root = 'D://DeepLearningData/VOC2012/'
-    transforms = transforms.Compose([transforms.Resize((224, 224)), transforms.ToTensor()])
-    dset = VOCDataset(root, img_size=(224, 224), transforms=transforms, is_categorical=True)
+    root = 'C://DeepLearningData/VOC2012/'
+    original_transforms = transforms.Compose([transforms.RandomCrop((224, 224), pad_if_needed=True),
+                                              transforms.ToTensor(),
+                                              transforms.Normalize([.485, .456, .406], [.229, .224, .225])])
+    rotate_transforms = transforms.Compose([transforms.RandomCrop((224, 224), pad_if_needed=True),
+                                            transforms.RandomRotation((-30, 30)),
+                                            transforms.ToTensor(),
+                                            transforms.Normalize([.485, .456, .406], [.229, .224, .225])])
+    horizontal_flip_transforms = transforms.Compose([transforms.RandomCrop((224, 224), pad_if_needed=True),
+                                                     transforms.RandomHorizontalFlip(1),
+                                                     transforms.ToTensor(),
+                                                     transforms.Normalize([.485, .456, .406], [.229, .224, .225])])
+    vertical_flip_transforms = transforms.Compose([transforms.RandomCrop((224, 224), pad_if_needed=True),
+                                                   transforms.RandomverticalFlip(1),
+                                                   transforms.ToTensor(),
+                                                   transforms.Normalize([.485, .456, .406], [.229, .224, .225])])
 
-    n_data = len(dset)
+    original_dset = VOCDataset(root, img_size=(224, 224), transforms=original_transforms, is_categorical=True)
+    rotate_dset = VOCDataset(root, img_size=(224, 224), transforms=rotate_transforms, is_categorical=True)
+    horizontal_flip_dset = VOCDataset(root, img_size=(224, 224), transforms=horizontal_flip_transforms, is_categorical=True)
+    vertical_flip_dset = VOCDataset(root, img_size=(224, 224), transforms=vertical_flip_transforms, is_categorical=True)
+
+    n_class = original_dset.n_class
+
+    n_data = len(original_dset)
     n_train_data = int(n_data * .7)
     n_val_data = n_data - n_train_data
-    dset_train, dset_val = random_split(dset, [n_train_data, n_val_data])
+    tarin_val_ratio = [n_train_data, n_val_data]
+
+    original_dset, dset_val = random_split(original_dset, tarin_val_ratio)
+    rotate_dset, _ = random_split(rotate_dset, tarin_val_ratio)
+    horizontal_flip_dset, _ = random_split(horizontal_flip_dset, tarin_val_ratio)
+    vertical_flip_dset, _ = random_split(vertical_flip_dset, tarin_val_ratio)
+
+    dset_train = ConcatDataset([original_dset, rotate_dset, horizontal_flip_dset, vertical_flip_dset])
 
     train_loader = DataLoader(dset_train, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
     val_loader = DataLoader(dset_val, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-
     print('Building model...')
-    model = VGG(vgg_cfgs['D'], dset.n_class).to(device)
-    # model = models.VGG(models.vgg.make_layers(vgg_cfgs['D']), len(datasets.classes)).to(device)
+    model = VGG(vgg_cfgs['D'], n_class).to(device)
+    # model_pth = 'saved models/base model/vgg_5e-05lr_3.67598loss_0.48738acc.pth'
+    # model = torch.load(model_pth).to(device)
     loss_func = custom_cross_entropy_loss
-    optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=.9, weight_decay=.005)
+    # optimizer = optim.SGD(model.parameters(), lr=learning_rate, weight_decay=.001)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=.001)
     # summary(model, (3, 224, 224))
 
     print('Training...')
@@ -58,6 +88,10 @@ if __name__ == '__main__':
     train_acc_arr = []
     val_loss_arr = []
     val_acc_arr = []
+
+    n_train_data = len(dset_train)
+
+    print('Train: {} Validation: {}'.format(len(dset_train), len(dset_val)))
 
     t_start = time.time()
     for e in range(num_epoch):
