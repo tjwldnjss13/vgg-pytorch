@@ -17,14 +17,18 @@ class VOCDataset(data.Dataset):
         self.segmentation = segmentation
         self.transforms = transforms
         self.is_categorical = is_categorical
-        self.n_class = 21
+        self.num_classes = 20
         self.class_dict = {'background': 0, 'aeroplane': 1, 'bicycle': 2, 'bird': 3, 'boat': 4, 'bottle': 5, 'bus': 6, 'car': 7, 'cat': 8,
                            'chair': 9, 'cow': 10, 'diningtable': 11, 'dog': 12, 'horse': 13, 'motorbike': 14, 'person': 15,
                            'pottedplant': 16, 'sheep': 17, 'sofa': 18, 'train': 19, 'tvmonitor': 20, 'ambigious': 255}
+        self.class_dict_no_bg = {'aeroplane': 0, 'bicycle': 1, 'bird': 2, 'boat': 3, 'bottle': 4, 'bus': 5, 'car': 6,
+                                 'cat': 7, 'chair': 8, 'cow': 9, 'diningtable': 10, 'dog': 11, 'horse': 12, 'motorbike': 13,
+                                 'person': 14, 'pottedplant': 15, 'sheep': 16, 'sofa': 17, 'train': 18, 'tvmonitor': 19}
+
         if segmentation:
             self.filenames = self.make_seg_image_list()
             if shuffle_seg:
-                self.filenames = random.shuffle(self.filenames)
+                random.shuffle(self.filenames)
         if not segmentation:
             self.annotation = self.make_ann_list()
 
@@ -74,9 +78,9 @@ class VOCDataset(data.Dataset):
                 xmax = float(bbox.find('xmax').text) * ratio_w
                 ymax = float(bbox.find('ymax').text) * ratio_h
 
-                class_ = self.class_dict[name] if name in self.class_dict.keys() else 0
+                class_ = self.class_dict_no_bg[name]
                 if self.is_categorical:
-                    class_ = self.to_categorical(class_, 21)
+                    class_ = self.to_categorical(class_, self.num_classes)
                     class_ = torch.as_tensor(class_)
                 bbox = [ymin, xmin, ymax, xmax]
 
@@ -141,7 +145,7 @@ class VOCDataset(data.Dataset):
         return label_
 
 
-def collate_fn(batch):
+def custom_collate_fn(batch):
     images = [item[0] for item in batch]
     anns = [item[1] for item in batch]
 
