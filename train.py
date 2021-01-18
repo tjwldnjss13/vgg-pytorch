@@ -48,7 +48,7 @@ if __name__ == '__main__':
                                                      transforms.ToTensor(),
                                                      transforms.Normalize([.485, .456, .406], [.229, .224, .225])])
     vertical_flip_transforms = transforms.Compose([transforms.RandomCrop((224, 224), pad_if_needed=True),
-                                                   transforms.RandomverticalFlip(1),
+                                                   transforms.RandomVerticalFlip(1),
                                                    transforms.ToTensor(),
                                                    transforms.Normalize([.485, .456, .406], [.229, .224, .225])])
 
