@@ -1,3 +1,4 @@
+import argparse
 import time
 import torch
 import torchvision.transforms as transforms
@@ -13,17 +14,28 @@ from utils import make_batch, time_calculator
 
 if __name__ == '__main__':
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    model_save_term = 5
 
-    # Define hyper parameters
-    batch_size = 16
-    learning_rate = .0001
-    num_epochs = 100
-    weight_decay = .005
+    # Define hyper parameters, parsers
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('--batch_size', required=False, default=16)
+    parser.add_argument('--lr', required=False, default=.0001)
+    parser.add_argument('-epoch', required=False, default=50)
+    parser.add_argument('--weight_decay', required=False, default=.001)
+    parser.add_argument('--model_save_term', required=False, default=5)
+
+    args = parser.parse_args()
+
+    batch_size = args.batch_size
+    learning_rate = args.lr
+    num_epochs = args.epoch
+    weight_decay = args.weight_decay
+    model_save_term = args.model_save_term
+
     num_classes = 20
 
     # Generate VOC dataset
-    root = 'D://DeepLearningData/VOC2012/'
+    root = 'C://DeepLearningData/VOC2012/'
     img_size = (224, 224)
 
     transform_original = transforms.Compose([transforms.Resize((224, 224)),
@@ -61,8 +73,10 @@ if __name__ == '__main__':
     dl_train = DataLoader(dset_train, batch_size=batch_size, shuffle=True, collate_fn=custom_collate_fn)
     dl_val = DataLoader(dset_val, batch_size=batch_size, shuffle=True, collate_fn=custom_collate_fn)
 
-    # Load pretrained model for the very first time
-    model = vgg16_bn(pretrained=True).to(device)
+    # Load pretrained model
+    model_pth = 'pretrained models/vgg_voc_0.0001lr_1.90828loss_0.74948acc.pth'
+    model = torch.load(model_pth).to(device)
+    model.classifier = torch.nn.Sequential(*[model.classifier[i] for i in range(7)])
     model.classifier[6] = torch.nn.Linear(4096, num_classes).to(device)
 
     # Generate optimizer, loss function
@@ -150,7 +164,7 @@ if __name__ == '__main__':
             print('<val_loss> {:<20} <val_acc> {:<20}'.format(val_loss_list[-1], val_acc_list[-1]))
 
         if (e + 1) % model_save_term == 0:
-            path = 'trained models/vgg_voc_{}lr_{:.5f}loss_{:.5f}acc.pth'
+            path = 'saved models/vgg_voc_{}lr_{:.5f}loss_{:.5f}acc.pth'.format(learning_rate, val_loss_list[-1], val_acc_list[-1])
             torch.save(model, path)
 
     # Show train/validation results(loss, accuracy)

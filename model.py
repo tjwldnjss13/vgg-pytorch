@@ -27,7 +27,6 @@ class VGG(nn.Module):
             nn.ReLU(True),
             # nn.Dropout(),
             nn.Linear(4096, num_classes),
-            nn.Softmax(dim=1)
         )
         # if self.num_classes >= 1000:
         #     self.classifier = nn.Sequential(

@@ -2,15 +2,10 @@ import torch
 from torch.utils.data import ConcatDataset
 from dataset.voc_dataset import VOCDataset
 
-root = 'C://DeepLearningData/VOC2012/'
-img_size = (224, 224)
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+model_pth = 'pretrained models/vgg_voc_0.0001lr_1.90828loss_0.74948acc.pth'
+model = torch.load(model_pth).to(device)
+model.classifier = torch.nn.Sequential(*[model.classifier[i] for i in range(7)])
+model.classifier[6] = torch.nn.Linear(4096, 20).to(device)
 
-dset1 = VOCDataset(root, img_size)
-dset2 = VOCDataset(root, img_size)
-dset3 = VOCDataset(root, img_size)
-dset4 = ConcatDataset([dset1, dset2, dset3])
-
-print(len(dset1))
-print(len(dset2))
-print(len(dset3))
-print(len(dset4))
+print(model)

@@ -1,20 +1,14 @@
 import torch
-import torch.nn as nn
 import torch.optim as optim
-import torch.nn.init as init
-import torchvision.datasets as dset
 import torchvision.transforms as transforms
-import torchvision.models as models
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, random_split, ConcatDataset
 from torchsummary import summary
 
-import os
 import time
 import argparse
-from model import VGG, make_conv_layers, vgg_cfgs
-from dataset.voc_dataset import VOCDataset, collate_fn
+from model import VGG, vgg_cfgs
+from dataset.voc_dataset import VOCDataset, custom_collate_fn
 from loss import custom_cross_entropy_loss
 from utils import make_batch, time_calculator
 
@@ -26,7 +20,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--batch_size', required=False, type=int, default=32)
-    parser.add_argument('--epoch', required=False, type=int, default=200)
+    parser.add_argument('--epoch', required=False, type=int, default=50)
     parser.add_argument('--lr', required=False, type=float, default=.0001)
 
     args = parser.parse_args()
@@ -57,7 +51,7 @@ if __name__ == '__main__':
     horizontal_flip_dset = VOCDataset(root, img_size=(224, 224), transforms=horizontal_flip_transforms, is_categorical=True)
     vertical_flip_dset = VOCDataset(root, img_size=(224, 224), transforms=vertical_flip_transforms, is_categorical=True)
 
-    n_class = original_dset.n_class
+    n_class = original_dset.num_classes
 
     n_data = len(original_dset)
     n_train_data = int(n_data * .7)
@@ -71,13 +65,13 @@ if __name__ == '__main__':
 
     dset_train = ConcatDataset([original_dset, rotate_dset, horizontal_flip_dset, vertical_flip_dset])
 
-    train_loader = DataLoader(dset_train, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
-    val_loader = DataLoader(dset_val, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+    train_loader = DataLoader(dset_train, batch_size=batch_size, shuffle=True, collate_fn=custom_collate_fn)
+    val_loader = DataLoader(dset_val, batch_size=batch_size, shuffle=True, collate_fn=custom_collate_fn)
 
     print('Building model...')
-    model = VGG(vgg_cfgs['D'], n_class).to(device)
-    # model_pth = 'saved models/base model/vgg_5e-05lr_3.67598loss_0.48738acc.pth'
-    # model = torch.load(model_pth).to(device)
+    # model = VGG(vgg_cfgs['D'], n_class).to(device)
+    model_pth = 'pretrained models/vgg_voc_0.0001lr_1.90828loss_0.74948acc.pth'
+    model = torch.load(model_pth).to(device)
     loss_func = custom_cross_entropy_loss
     # optimizer = optim.SGD(model.parameters(), lr=learning_rate, weight_decay=.001)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=.001)
